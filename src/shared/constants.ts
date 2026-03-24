@@ -131,6 +131,14 @@ export const GAS_STATIONS: GasStation[] = [
 export const GAME_DURATION = 60; // seconds
 export const COUNTDOWN_SECONDS = 3; // 3-2-1-GO
 
+// Zone deactivation schedule: at these times remaining, deactivate zone at that index
+// Order: Koper (3) at 45s, Celje (1) at 30s, Maribor (2) at 15s → only Ljubljana left
+export const ZONE_DEACTIVATION_SCHEDULE: { timeRemaining: number; zoneIndex: number }[] = [
+  { timeRemaining: 45, zoneIndex: 3 }, // Koper goes dark at 45s left
+  { timeRemaining: 30, zoneIndex: 1 }, // Celje goes dark at 30s left
+  { timeRemaining: 15, zoneIndex: 2 }, // Maribor goes dark at 15s left
+];
+
 export const WALL_THICKNESS = 30;
 
 // Car dimensions (in pixels)
@@ -140,6 +148,14 @@ export const CAR_LENGTH = 48;
 // SUV is visually bigger
 export const SUV_WIDTH = 30;
 export const SUV_LENGTH = 56;
+
+// Fičo (Fiat 600) — tiny and nimble
+export const FICO_WIDTH = 20;
+export const FICO_LENGTH = 38;
+
+// Bulli T1 (VW van) — big and heavy
+export const BULLI_WIDTH = 32;
+export const BULLI_LENGTH = 60;
 
 // Fuel gained per tick while in zone (base, before combo)
 export const FUEL_PER_TICK = 0.5;
@@ -165,6 +181,8 @@ export const RESTART_DELAY = 5;
 // Drift: how much lateral velocity is preserved (0 = no drift, 1 = ice)
 export const DRIFT_FACTOR_ZASTAVA = 0.92; // very drifty
 export const DRIFT_FACTOR_SUV = 0.85; // less drifty but still slides
+export const DRIFT_FACTOR_FICO = 0.94; // super drifty little car
+export const DRIFT_FACTOR_BULLI = 0.80; // heavy van grips more
 
 // Fuel drain while driving outside zone (per tick, only when moving)
 export const FUEL_DRAIN_PER_TICK = 0.05;
@@ -244,5 +262,27 @@ export const CAR_ARCHETYPES: Record<CarType, CarStats> = {
     width: SUV_WIDTH,
     length: SUV_LENGTH,
     label: 'SUV',
+  },
+  fico: {
+    baseMass: 0.6,
+    maxForce: 0.0045,
+    maxTorque: 0.10,
+    friction: 0.25,
+    frictionAir: 0.035,
+    driftFactor: DRIFT_FACTOR_FICO,
+    width: FICO_WIDTH,
+    length: FICO_LENGTH,
+    label: 'Fičo',
+  },
+  bulli: {
+    baseMass: 3.0,
+    maxForce: 0.003,
+    maxTorque: 0.04,
+    friction: 0.45,
+    frictionAir: 0.055,
+    driftFactor: DRIFT_FACTOR_BULLI,
+    width: BULLI_WIDTH,
+    length: BULLI_LENGTH,
+    label: 'Bulli T1',
   },
 };

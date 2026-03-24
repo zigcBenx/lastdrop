@@ -196,6 +196,7 @@ export class Renderer {
     ctx.restore();
 
     // --- Screen-space drawing (HUD, not affected by camera) ---
+    this.drawOffscreenArrows(ctx, state, myId);
     this.drawHUD(ctx, state, sorted);
     this.drawKillFeed(ctx);
 
@@ -272,8 +273,36 @@ export class Renderer {
   private drawPumpZones(ctx: CanvasRenderingContext2D, state: GameState): void {
     this.zonePulse += 0.03;
     const pulse = Math.sin(this.zonePulse) * 0.15 + 0.85;
+    const activeZones = state.activeZones ?? GAS_STATIONS.map((_, i) => i);
 
-    for (const zone of GAS_STATIONS) {
+    for (let zi = 0; zi < GAS_STATIONS.length; zi++) {
+      const zone = GAS_STATIONS[zi];
+      const isActive = activeZones.includes(zi);
+
+      if (!isActive) {
+        // Deactivated zone: dim and grey
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath();
+        ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Dimmed city name with "CLOSED" label
+        ctx.fillStyle = '#555';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(zone.name, zone.x, zone.y + zone.radius + 18);
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText('CLOSED', zone.x, zone.y);
+        ctx.textBaseline = 'alphabetic';
+        ctx.globalAlpha = 1;
+        continue;
+      }
+
       // Check if any player is inside this specific zone
       const hasOccupant = state.players.some((p) => {
         const dx = p.x - zone.x;
@@ -445,6 +474,86 @@ export class Renderer {
       ctx.fillStyle = '#ffffaa';
       ctx.fillRect(l / 2 - 6, -w / 2 + 2, 4, 5);
       ctx.fillRect(l / 2 - 6, w / 2 - 7, 4, 5);
+    } else if (player.carType === 'fico') {
+      // Fičo: tiny bubble car with very rounded shape
+      ctx.fillStyle = player.color;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, l / 2, w / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Roof (darker ellipse)
+      ctx.fillStyle = this.darken(player.color, 0.3);
+      ctx.beginPath();
+      ctx.ellipse(-2, 0, l * 0.25, w * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Round headlights
+      ctx.fillStyle = '#ffffaa';
+      ctx.beginPath();
+      ctx.arc(l / 2 - 3, -w / 2 + 4, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(l / 2 - 3, w / 2 - 4, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tiny tail lights
+      ctx.fillStyle = '#ff3333';
+      ctx.beginPath();
+      ctx.arc(-l / 2 + 3, -w / 2 + 3, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-l / 2 + 3, w / 2 - 3, 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (player.carType === 'bulli') {
+      // Bulli T1: boxy VW van with split windshield
+      ctx.fillStyle = player.color;
+      ctx.beginPath();
+      ctx.moveTo(-l / 2 + 3, -w / 2);
+      ctx.lineTo(l / 2 - 3, -w / 2);
+      ctx.quadraticCurveTo(l / 2, -w / 2, l / 2, -w / 2 + 3);
+      ctx.lineTo(l / 2, w / 2 - 3);
+      ctx.quadraticCurveTo(l / 2, w / 2, l / 2 - 3, w / 2);
+      ctx.lineTo(-l / 2 + 3, w / 2);
+      ctx.quadraticCurveTo(-l / 2, w / 2, -l / 2, w / 2 - 3);
+      ctx.lineTo(-l / 2, -w / 2 + 3);
+      ctx.quadraticCurveTo(-l / 2, -w / 2, -l / 2 + 3, -w / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Two-tone: lower half darker
+      ctx.fillStyle = this.darken(player.color, 0.25);
+      ctx.fillRect(-l / 2 + 3, 0, l - 6, w / 2 - 1);
+      ctx.fillRect(-l / 2 + 3, -w / 2 + 1, l - 6, -(-w / 2 + 1));
+
+      // Split windshield
+      ctx.fillStyle = 'rgba(150, 200, 255, 0.5)';
+      ctx.fillRect(l / 2 - 10, -w / 2 + 3, 7, w / 2 - 4);
+      ctx.fillRect(l / 2 - 10, 1, 7, w / 2 - 4);
+
+      // Center divider
+      ctx.fillStyle = player.color;
+      ctx.fillRect(l / 2 - 10, -1, 7, 2);
+
+      // VW logo circle on front
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(l / 2 - 2, 0, 4, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Big round headlights
+      ctx.fillStyle = '#ffffaa';
+      ctx.beginPath();
+      ctx.arc(l / 2 - 1, -w / 2 + 5, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(l / 2 - 1, w / 2 - 5, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tail lights
+      ctx.fillStyle = '#ff3333';
+      ctx.fillRect(-l / 2 + 1, -w / 2 + 2, 3, 5);
+      ctx.fillRect(-l / 2 + 1, w / 2 - 7, 3, 5);
     } else {
       // Zastava: sleek small car
       ctx.fillStyle = player.color;
@@ -544,6 +653,79 @@ export class Renderer {
     ctx.strokeRect(barX, barY, barWidth, barHeight);
   }
 
+  private drawOffscreenArrows(ctx: CanvasRenderingContext2D, state: GameState, myId: string): void {
+    const margin = 40;
+    const arrowSize = 12;
+
+    for (const player of state.players) {
+      if (player.id === myId) continue;
+
+      // Player position in screen space
+      const sx = player.x - this.camX;
+      const sy = player.y - this.camY;
+
+      // Check if off-screen
+      if (sx >= -20 && sx <= VIEWPORT_WIDTH + 20 && sy >= -20 && sy <= VIEWPORT_HEIGHT + 20) continue;
+
+      // Clamp to viewport edge with margin
+      const cx = VIEWPORT_WIDTH / 2;
+      const cy = VIEWPORT_HEIGHT / 2;
+      const dx = sx - cx;
+      const dy = sy - cy;
+      const angle = Math.atan2(dy, dx);
+
+      // Find intersection with viewport edge
+      let ax: number, ay: number;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      const halfW = VIEWPORT_WIDTH / 2 - margin;
+      const halfH = VIEWPORT_HEIGHT / 2 - margin;
+
+      if (absDx / halfW > absDy / halfH) {
+        // Hits left or right edge
+        ax = cx + Math.sign(dx) * halfW;
+        ay = cy + dy * (halfW / absDx);
+      } else {
+        // Hits top or bottom edge
+        ax = cx + dx * (halfH / absDy);
+        ay = cy + Math.sign(dy) * halfH;
+      }
+
+      // Clamp ay/ax within viewport
+      ax = Math.max(margin, Math.min(VIEWPORT_WIDTH - margin, ax));
+      ay = Math.max(margin, Math.min(VIEWPORT_HEIGHT - margin, ay));
+
+      // Draw arrow triangle pointing toward the player
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(angle);
+
+      ctx.fillStyle = player.color;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(arrowSize, 0);
+      ctx.lineTo(-arrowSize * 0.6, -arrowSize * 0.7);
+      ctx.lineTo(-arrowSize * 0.6, arrowSize * 0.7);
+      ctx.closePath();
+      ctx.fill();
+
+      // Outline
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Emoji next to arrow
+      ctx.rotate(-angle); // un-rotate for upright text
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(player.emoji, 0, -arrowSize - 6);
+
+      ctx.restore();
+    }
+  }
+
   private drawHUD(ctx: CanvasRenderingContext2D, state: GameState, sorted: PlayerState[]): void {
     // Timer
     const timeStr = Math.ceil(state.timeRemaining).toString();
@@ -596,28 +778,49 @@ export class Renderer {
       ctx.fillStyle = '#f1c40f';
       ctx.font = 'bold 48px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('GAME OVER', VIEWPORT_WIDTH / 2, VIEWPORT_HEIGHT / 2 - 50);
+      ctx.fillText('GAME OVER', VIEWPORT_WIDTH / 2, VIEWPORT_HEIGHT / 2 - 100);
 
       if (sorted.length > 0) {
         ctx.font = '24px sans-serif';
-        ctx.fillText('\u{1F451}', VIEWPORT_WIDTH / 2, VIEWPORT_HEIGHT / 2 - 10);
+        ctx.fillText('\u{1F451}', VIEWPORT_WIDTH / 2, VIEWPORT_HEIGHT / 2 - 60);
 
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 24px monospace';
         ctx.fillText(
           `${sorted[0].nickname} wins with ${sorted[0].fuel.toFixed(1)}L!`,
           VIEWPORT_WIDTH / 2,
-          VIEWPORT_HEIGHT / 2 + 20
+          VIEWPORT_HEIGHT / 2 - 30
         );
+      }
+
+      // Awards
+      if (state.awards && state.awards.length > 0) {
+        const awardY = VIEWPORT_HEIGHT / 2 + 10;
+        const awardIcons = ['\u{1F4A5}', '\u{1F3CE}\u{FE0F}', '\u26FA']; // explosion, race car, tent
+
+        state.awards.forEach((award, i) => {
+          const y = awardY + i * 28;
+          const icon = awardIcons[i] || '\u{2B50}';
+
+          ctx.fillStyle = '#f1c40f';
+          ctx.font = 'bold 14px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(
+            `${icon} ${award.title}: ${award.emoji} ${award.playerName} (${award.value})`,
+            VIEWPORT_WIDTH / 2,
+            y
+          );
+        });
       }
 
       if (state.restartIn !== undefined) {
         ctx.fillStyle = '#aaa';
         ctx.font = '18px monospace';
+        ctx.textAlign = 'center';
         ctx.fillText(
           `Next round in ${Math.ceil(state.restartIn)}...`,
           VIEWPORT_WIDTH / 2,
-          VIEWPORT_HEIGHT / 2 + 55
+          VIEWPORT_HEIGHT / 2 + 110
         );
       }
     }

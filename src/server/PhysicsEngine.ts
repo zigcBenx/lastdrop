@@ -1,5 +1,5 @@
 import Matter from 'matter-js';
-import { InputState, CarType, PlayerState, FuelPickup, CollisionEvent, SpillEvent } from '../shared/types';
+import { InputState, CarType, PlayerState, FuelPickup, CollisionEvent, SpillEvent, RoundAward } from '../shared/types';
 import {
   MAP_WIDTH,
   MAP_HEIGHT,
@@ -34,6 +34,12 @@ interface CarEntry {
   color: string;
   hitFlash: number;
   comboSeconds: number; // seconds continuously in zone
+  // Round stats
+  fuelKnocked: number; // total fuel knocked from others
+  distanceTraveled: number; // total distance driven
+  maxComboSeconds: number; // longest zone streak
+  prevX: number;
+  prevY: number;
 }
 
 let pickupIdCounter = 0;
@@ -126,6 +132,9 @@ export class PhysicsEngine {
             // Reset victim's combo
             victim.comboSeconds = 0;
 
+            // Track attacker stats
+            attacker.fuelKnocked += spillAmount;
+
             this.frameSpills.push({
               attackerName: attacker.nickname,
               victimName: victim.nickname,
@@ -196,6 +205,11 @@ export class PhysicsEngine {
       color,
       hitFlash: 0,
       comboSeconds: 0,
+      fuelKnocked: 0,
+      distanceTraveled: 0,
+      maxComboSeconds: 0,
+      prevX: spawn.x,
+      prevY: spawn.y,
     });
   }
 
@@ -310,8 +324,8 @@ export class PhysicsEngine {
   }
 
   /** Drain fuel from cars driving outside the zone */
-  drainFuelOutsideZone(): void {
-    const occupants = new Set(this.getZoneOccupants());
+  drainFuelOutsideZone(activeZones?: number[]): void {
+    const occupants = new Set(this.getZoneOccupants(activeZones));
     for (const [id, entry] of this.cars) {
       if (occupants.has(id)) continue; // in zone, no drain
 
@@ -326,9 +340,9 @@ export class PhysicsEngine {
   }
 
   /** Update combo counters for zone occupants */
-  updateCombos(): void {
+  updateCombos(activeZones?: number[]): void {
     const dt = 1 / TICK_RATE;
-    const occupants = new Set(this.getZoneOccupants());
+    const occupants = new Set(this.getZoneOccupants(activeZones));
     for (const [id, entry] of this.cars) {
       if (occupants.has(id)) {
         entry.comboSeconds += dt;
@@ -362,16 +376,18 @@ export class PhysicsEngine {
     return this.cars.get(id)?.comboSeconds ?? 0;
   }
 
-  getZoneOccupants(): string[] {
+  getZoneOccupants(activeZones?: number[]): string[] {
     const occupants: string[] = [];
     for (const [id, entry] of this.cars) {
-      for (const zone of GAS_STATIONS) {
+      for (let i = 0; i < GAS_STATIONS.length; i++) {
+        if (activeZones && !activeZones.includes(i)) continue;
+        const zone = GAS_STATIONS[i];
         const dx = entry.body.position.x - zone.x;
         const dy = entry.body.position.y - zone.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < zone.radius) {
           occupants.push(id);
-          break; // a car can only be in one zone at a time
+          break;
         }
       }
     }
@@ -387,6 +403,23 @@ export class PhysicsEngine {
     this.collectPickups();
     this.decayPickups();
     this.decayHitFlash();
+    this.trackStats();
+  }
+
+  private trackStats(): void {
+    for (const [, entry] of this.cars) {
+      // Track distance
+      const dx = entry.body.position.x - entry.prevX;
+      const dy = entry.body.position.y - entry.prevY;
+      entry.distanceTraveled += Math.sqrt(dx * dx + dy * dy);
+      entry.prevX = entry.body.position.x;
+      entry.prevY = entry.body.position.y;
+
+      // Track max combo streak
+      if (entry.comboSeconds > entry.maxComboSeconds) {
+        entry.maxComboSeconds = entry.comboSeconds;
+      }
+    }
   }
 
   getCollisions(): CollisionEvent[] {
@@ -401,9 +434,9 @@ export class PhysicsEngine {
     return [...this.pickups];
   }
 
-  getPlayerStates(): PlayerState[] {
+  getPlayerStates(activeZones?: number[]): PlayerState[] {
     const states: PlayerState[] = [];
-    const occupants = new Set(this.getZoneOccupants());
+    const occupants = new Set(this.getZoneOccupants(activeZones));
 
     for (const [id, entry] of this.cars) {
       const speed = Math.sqrt(entry.body.velocity.x ** 2 + entry.body.velocity.y ** 2);
@@ -491,6 +524,50 @@ export class PhysicsEngine {
     const cx = SLOVENIA_POLYGON.reduce((s, p) => s + p.x, 0) / SLOVENIA_POLYGON.length;
     const cy = SLOVENIA_POLYGON.reduce((s, p) => s + p.y, 0) / SLOVENIA_POLYGON.length;
     return { x: cx, y: cy, angle: 0 };
+  }
+
+  computeAwards(): RoundAward[] {
+    const awards: RoundAward[] = [];
+
+    let bestKnocker: CarEntry | null = null;
+    let bestDistance: CarEntry | null = null;
+    let bestCamper: CarEntry | null = null;
+
+    for (const [, entry] of this.cars) {
+      if (!bestKnocker || entry.fuelKnocked > bestKnocker.fuelKnocked) bestKnocker = entry;
+      if (!bestDistance || entry.distanceTraveled > bestDistance.distanceTraveled) bestDistance = entry;
+      if (!bestCamper || entry.maxComboSeconds > bestCamper.maxComboSeconds) bestCamper = entry;
+    }
+
+    if (bestKnocker && bestKnocker.fuelKnocked > 0) {
+      awards.push({
+        title: 'Most Aggressive',
+        playerName: bestKnocker.nickname,
+        emoji: bestKnocker.emoji,
+        value: `${bestKnocker.fuelKnocked.toFixed(1)}L knocked`,
+      });
+    }
+
+    if (bestDistance && bestDistance.distanceTraveled > 0) {
+      const km = (bestDistance.distanceTraveled / 100).toFixed(1);
+      awards.push({
+        title: 'Road Warrior',
+        playerName: bestDistance.nickname,
+        emoji: bestDistance.emoji,
+        value: `${km}km driven`,
+      });
+    }
+
+    if (bestCamper && bestCamper.maxComboSeconds > 0) {
+      awards.push({
+        title: 'Station Camper',
+        playerName: bestCamper.nickname,
+        emoji: bestCamper.emoji,
+        value: `${bestCamper.maxComboSeconds.toFixed(1)}s streak`,
+      });
+    }
+
+    return awards;
   }
 
   getCarIds(): string[] {

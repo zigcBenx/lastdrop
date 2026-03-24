@@ -1,4 +1,4 @@
-export type CarType = 'zastava' | 'suv';
+export type CarType = 'zastava' | 'suv' | 'fico' | 'bulli';
 
 export type GamePhase = 'waiting' | 'countdown' | 'playing' | 'finished';
 
@@ -48,6 +48,13 @@ export interface SpillEvent {
   amount: number;
 }
 
+export interface RoundAward {
+  title: string;
+  playerName: string;
+  emoji: string;
+  value: string;
+}
+
 export interface GameState {
   players: PlayerState[];
   pickups: FuelPickup[];
@@ -55,6 +62,8 @@ export interface GameState {
   spills: SpillEvent[];
   timeRemaining: number;
   phase: GamePhase;
+  activeZones: number[]; // indices into GAS_STATIONS that are still active
+  awards?: RoundAward[]; // end-of-round awards
   countdownValue?: number; // 3, 2, 1 during countdown phase
   restartIn?: number;
 }

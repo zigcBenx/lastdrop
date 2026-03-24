@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { PhysicsEngine } from './PhysicsEngine';
 import { InputState, GameState, GamePhase, JoinPayload } from '../shared/types';
-import { TICK_MS, TICK_RATE, GAME_DURATION, FUEL_PER_TICK, RESTART_DELAY, COUNTDOWN_SECONDS, COMBO_TIERS } from '../shared/constants';
+import { TICK_MS, TICK_RATE, GAME_DURATION, FUEL_PER_TICK, RESTART_DELAY, COUNTDOWN_SECONDS, COMBO_TIERS, GAS_STATIONS, ZONE_DEACTIVATION_SCHEDULE } from '../shared/constants';
 
 interface PlayerInfo {
   socket: Socket;
@@ -19,11 +19,13 @@ export class GameRoom {
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private io: Server;
   private roomId: string;
+  private activeZones: number[] = [];
 
   constructor(io: Server, roomId: string) {
     this.io = io;
     this.roomId = roomId;
     this.physics = new PhysicsEngine();
+    this.activeZones = GAS_STATIONS.map((_, i) => i);
   }
 
   addPlayer(socket: Socket, payload: JoinPayload): void {
@@ -69,6 +71,7 @@ export class GameRoom {
     this.phase = 'playing';
     this.timeRemaining = GAME_DURATION;
     this.restartTimer = 0;
+    this.activeZones = GAS_STATIONS.map((_, i) => i);
   }
 
   private stopGame(): void {
@@ -122,11 +125,18 @@ export class GameRoom {
     // 2. Step physics
     this.physics.step();
 
-    // 3. Update combos
-    this.physics.updateCombos();
+    // 3. Deactivate zones on schedule
+    for (const entry of ZONE_DEACTIVATION_SCHEDULE) {
+      if (this.timeRemaining <= entry.timeRemaining && this.activeZones.includes(entry.zoneIndex)) {
+        this.activeZones = this.activeZones.filter((i) => i !== entry.zoneIndex);
+      }
+    }
 
-    // 4. Score: players in zone gain fuel (with combo multiplier)
-    const occupants = this.physics.getZoneOccupants();
+    // 4. Update combos
+    this.physics.updateCombos(this.activeZones);
+
+    // 5. Score: players in zone gain fuel (with combo multiplier)
+    const occupants = this.physics.getZoneOccupants(this.activeZones);
     for (const id of occupants) {
       const currentFuel = this.physics.getFuel(id);
       const comboSeconds = this.physics.getComboSeconds(id);
@@ -140,10 +150,10 @@ export class GameRoom {
       this.physics.setFuel(id, currentFuel + FUEL_PER_TICK * multiplier);
     }
 
-    // 5. Drain fuel from cars driving outside zone
-    this.physics.drainFuelOutsideZone();
+    // 6. Drain fuel from cars driving outside zone
+    this.physics.drainFuelOutsideZone(this.activeZones);
 
-    // 6. Decrement timer
+    // 7. Decrement timer
     this.timeRemaining -= 1 / TICK_RATE;
     if (this.timeRemaining <= 0) {
       this.timeRemaining = 0;
@@ -151,18 +161,19 @@ export class GameRoom {
       this.restartTimer = RESTART_DELAY;
     }
 
-    // 7. Broadcast state
+    // 8. Broadcast state
     this.io.to(this.roomId).emit('state', this.buildGameState());
   }
 
   private buildGameState(): GameState {
     const state: GameState = {
-      players: this.physics.getPlayerStates(),
+      players: this.physics.getPlayerStates(this.activeZones),
       pickups: this.physics.getPickups(),
       collisions: this.physics.getCollisions(),
       spills: this.physics.getSpills(),
       timeRemaining: Math.max(0, this.timeRemaining),
       phase: this.phase,
+      activeZones: [...this.activeZones],
     };
 
     if (this.phase === 'countdown') {
@@ -171,6 +182,7 @@ export class GameRoom {
 
     if (this.phase === 'finished') {
       state.restartIn = Math.max(0, this.restartTimer);
+      state.awards = this.physics.computeAwards();
     }
 
     return state;

@@ -6,9 +6,11 @@
   "scripts": {
     "build:client": "esbuild src/client/index.ts --bundle --outfile=public/bundle.js --platform=browser --format=iife",
     "build:client:watch": "esbuild src/client/index.ts --bundle --outfile=public/bundle.js --platform=browser --format=iife --watch",
+    "build:server": "tsc --project tsconfig.server.json",
+    "build": "npm run build:client && npm run build:server",
     "dev:server": "nodemon --exec ts-node src/server/index.ts --ext ts --watch src/server --watch src/shared",
     "dev": "npm run build:client && concurrently \"npm run build:client:watch\" \"npm run dev:server\"",
-    "start": "npm run build:client && ts-node src/server/index.ts"
+    "start": "node dist/server/index.js"
   },
   "keywords": [],
   "author": "",
