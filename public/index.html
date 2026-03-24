@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Last Drop</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #1a1a1a;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #lobby {
+      text-align: center;
+    }
+
+    #lobby h1 {
+      font-size: 48px;
+      color: #f1c40f;
+      margin-bottom: 8px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
+    #lobby .subtitle {
+      color: #aaa;
+      margin-bottom: 28px;
+      font-size: 14px;
+    }
+
+    #lobby .form-group {
+      margin-bottom: 14px;
+    }
+
+    #lobby label {
+      display: block;
+      margin-bottom: 6px;
+      color: #ccc;
+      font-size: 14px;
+    }
+
+    #lobby input,
+    #lobby select {
+      background: #333;
+      border: 2px solid #555;
+      color: #fff;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      border-radius: 4px;
+      width: 240px;
+    }
+
+    #lobby input:focus,
+    #lobby select:focus {
+      outline: none;
+      border-color: #f1c40f;
+    }
+
+    .picker-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+
+    .emoji-btn, .color-btn {
+      width: 36px;
+      height: 36px;
+      border: 2px solid #555;
+      border-radius: 6px;
+      background: #333;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, transform 0.15s;
+      padding: 0;
+    }
+
+    .emoji-btn:hover, .color-btn:hover {
+      border-color: #888;
+      transform: scale(1.1);
+    }
+
+    .emoji-btn.selected, .color-btn.selected {
+      border-color: #f1c40f;
+      transform: scale(1.15);
+      box-shadow: 0 0 8px rgba(241, 196, 15, 0.5);
+    }
+
+    .color-btn {
+      border-radius: 50%;
+    }
+
+    #lobby button {
+      background: #f1c40f;
+      color: #1a1a1a;
+      border: none;
+      padding: 12px 32px;
+      font-size: 18px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 18px;
+      transition: background 0.2s;
+    }
+
+    #lobby button:hover {
+      background: #f39c12;
+    }
+
+    #game-container {
+      display: none;
+    }
+
+    #game-canvas {
+      border: 2px solid #333;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="lobby">
+    <h1>THE LAST DROP</h1>
+    <p class="subtitle">Park. Fuel. Fight.</p>
+
+    <div class="form-group">
+      <label for="nickname">Nickname</label>
+      <input type="text" id="nickname" placeholder="Enter nickname" maxlength="12" autofocus>
+    </div>
+
+    <div class="form-group">
+      <label for="car-type">Car Type</label>
+      <select id="car-type">
+        <option value="zastava">Zastava (Fast &amp; Light)</option>
+        <option value="suv">SUV (Slow &amp; Heavy)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Your Emoji</label>
+      <div class="picker-grid" id="emoji-picker"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Car Color</label>
+      <div class="picker-grid" id="color-picker"></div>
+    </div>
+
+    <button id="join-btn">JOIN GAME</button>
+  </div>
+
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <script src="bundle.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "name": "lastdrop",
+  "version": "1.0.0",
+  "description": "The Last Drop - top-down multiplayer sumo car game",
+  "main": "src/server/index.ts",
+  "scripts": {
+    "build:client": "esbuild src/client/index.ts --bundle --outfile=public/bundle.js --platform=browser --format=iife",
+    "build:client:watch": "esbuild src/client/index.ts --bundle --outfile=public/bundle.js --platform=browser --format=iife --watch",
+    "dev:server": "nodemon --exec ts-node src/server/index.ts --ext ts --watch src/server --watch src/shared",
+    "dev": "npm run build:client && concurrently \"npm run build:client:watch\" \"npm run dev:server\"",
+    "start": "npm run build:client && ts-node src/server/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "matter-js": "^0.20.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/matter-js": "^0.20.2",
+    "@types/node": "^25.5.0",
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.27.4",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  }
+}
