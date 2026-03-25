@@ -4350,34 +4350,56 @@
   }
   var Interpolator = class {
     constructor() {
-      this.prevState = null;
-      this.currState = null;
-      this.lastUpdateTime = 0;
+      this.stateBuffer = [];
+      this.renderDelay = TICK_MS * 2;
     }
+    // Render 2 ticks behind to allow for interpolation
     pushState(state) {
-      this.prevState = this.currState;
-      this.currState = state;
-      this.lastUpdateTime = performance.now();
+      this.stateBuffer.push({
+        state,
+        timestamp: performance.now()
+      });
+      if (this.stateBuffer.length > 10) {
+        this.stateBuffer.shift();
+      }
     }
     getInterpolatedState() {
-      if (!this.currState) return null;
-      if (!this.prevState) return this.currState;
-      const elapsed = performance.now() - this.lastUpdateTime;
-      const t = Math.min(1, elapsed / TICK_MS);
-      const players = this.currState.players.map((curr) => {
-        const prev = this.prevState.players.find((p) => p.id === curr.id);
-        if (!prev) return curr;
+      if (this.stateBuffer.length === 0) return null;
+      if (this.stateBuffer.length === 1) return this.stateBuffer[0].state;
+      const now = performance.now();
+      const renderTime = now - this.renderDelay;
+      let prevIndex = 0;
+      let nextIndex = 0;
+      for (let i = 0; i < this.stateBuffer.length - 1; i++) {
+        if (this.stateBuffer[i].timestamp <= renderTime && this.stateBuffer[i + 1].timestamp >= renderTime) {
+          prevIndex = i;
+          nextIndex = i + 1;
+          break;
+        }
+      }
+      if (renderTime >= this.stateBuffer[this.stateBuffer.length - 1].timestamp) {
+        return this.stateBuffer[this.stateBuffer.length - 1].state;
+      }
+      const prevState = this.stateBuffer[prevIndex].state;
+      const nextState = this.stateBuffer[nextIndex].state;
+      const prevTime = this.stateBuffer[prevIndex].timestamp;
+      const nextTime = this.stateBuffer[nextIndex].timestamp;
+      const t = (renderTime - prevTime) / (nextTime - prevTime);
+      const players = nextState.players.map((next) => {
+        const prev = prevState.players.find((p) => p.id === next.id);
+        if (!prev) return next;
         return {
-          ...curr,
-          x: prev.x + (curr.x - prev.x) * t,
-          y: prev.y + (curr.y - prev.y) * t,
-          angle: lerpAngle(prev.angle, curr.angle, t)
+          ...next,
+          x: prev.x + (next.x - prev.x) * t,
+          y: prev.y + (next.y - prev.y) * t,
+          angle: lerpAngle(prev.angle, next.angle, t),
+          vx: prev.vx + (next.vx - prev.vx) * t,
+          vy: prev.vy + (next.vy - prev.vy) * t
         };
       });
       return {
-        ...this.currState,
+        ...nextState,
         players
-        // Pickups and collisions use latest state (no interpolation needed)
       };
     }
   };
