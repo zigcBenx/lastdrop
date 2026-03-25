@@ -4365,11 +4365,19 @@
     }
     getInterpolatedState() {
       if (this.stateBuffer.length === 0) return null;
-      if (this.stateBuffer.length === 1) return this.stateBuffer[0].state;
+      if (this.stateBuffer.length < 3) {
+        return this.stateBuffer[this.stateBuffer.length - 1].state;
+      }
       const now = performance.now();
       const renderTime = now - this.renderDelay;
+      if (renderTime < this.stateBuffer[0].timestamp) {
+        return this.stateBuffer[0].state;
+      }
+      if (renderTime >= this.stateBuffer[this.stateBuffer.length - 1].timestamp) {
+        return this.stateBuffer[this.stateBuffer.length - 1].state;
+      }
       let prevIndex = 0;
-      let nextIndex = 0;
+      let nextIndex = 1;
       for (let i = 0; i < this.stateBuffer.length - 1; i++) {
         if (this.stateBuffer[i].timestamp <= renderTime && this.stateBuffer[i + 1].timestamp >= renderTime) {
           prevIndex = i;
@@ -4377,14 +4385,11 @@
           break;
         }
       }
-      if (renderTime >= this.stateBuffer[this.stateBuffer.length - 1].timestamp) {
-        return this.stateBuffer[this.stateBuffer.length - 1].state;
-      }
       const prevState = this.stateBuffer[prevIndex].state;
       const nextState = this.stateBuffer[nextIndex].state;
       const prevTime = this.stateBuffer[prevIndex].timestamp;
       const nextTime = this.stateBuffer[nextIndex].timestamp;
-      const t = (renderTime - prevTime) / (nextTime - prevTime);
+      const t = Math.max(0, Math.min(1, (renderTime - prevTime) / (nextTime - prevTime)));
       const players = nextState.players.map((next) => {
         const prev = prevState.players.find((p) => p.id === next.id);
         if (!prev) return next;
