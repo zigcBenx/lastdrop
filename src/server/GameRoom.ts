@@ -1,11 +1,16 @@
 import { Server, Socket } from 'socket.io';
 import { PhysicsEngine } from './PhysicsEngine';
 import { InputState, GameState, GamePhase, JoinPayload } from '../shared/types';
-import { TICK_MS, TICK_RATE, GAME_DURATION, FUEL_PER_TICK, RESTART_DELAY, COUNTDOWN_SECONDS, COMBO_TIERS, GAS_STATIONS, ZONE_DEACTIVATION_SCHEDULE } from '../shared/constants';
+import { TICK_MS, TICK_RATE, GAME_DURATION, FUEL_PER_TICK, RESTART_DELAY, COUNTDOWN_SECONDS, COMBO_TIERS, GAS_STATIONS, STATION_FAILURE_MIN_DURATION, STATION_FAILURE_MAX_DURATION, STATION_OPEN_MIN_DURATION, STATION_OPEN_MAX_DURATION, MIN_STATIONS_ACTIVE } from '../shared/constants';
 
 interface PlayerInfo {
   socket: Socket;
   payload: JoinPayload;
+}
+
+interface StationTimer {
+  nextChangeTime: number; // time remaining when this station will change state
+  willBeActive: boolean; // will it be active or inactive after the change
 }
 
 export class GameRoom {
@@ -20,12 +25,66 @@ export class GameRoom {
   private io: Server;
   private roomId: string;
   private activeZones: number[] = [];
+  private stationTimers: StationTimer[] = [];
 
   constructor(io: Server, roomId: string) {
     this.io = io;
     this.roomId = roomId;
     this.physics = new PhysicsEngine();
     this.activeZones = GAS_STATIONS.map((_, i) => i);
+    this.initializeStationTimers();
+  }
+
+  private initializeStationTimers(): void {
+    // Initialize all stations with random timers
+    this.stationTimers = GAS_STATIONS.map((_, i) => {
+      // Start with all stations active, but schedule their first closure
+      const nextChangeTime = GAME_DURATION - this.randomBetween(STATION_OPEN_MIN_DURATION, STATION_OPEN_MAX_DURATION);
+      return {
+        nextChangeTime,
+        willBeActive: false, // will close
+      };
+    });
+
+    // Ensure at least one station is scheduled to close soon (within first 10 seconds)
+    const earlyCloseIndex = Math.floor(Math.random() * GAS_STATIONS.length);
+    this.stationTimers[earlyCloseIndex].nextChangeTime = GAME_DURATION - this.randomBetween(3, 8);
+  }
+
+  private randomBetween(min: number, max: number): number {
+    return min + Math.random() * (max - min);
+  }
+
+  private updateStationFailures(): void {
+    // Check each station's timer
+    for (let i = 0; i < GAS_STATIONS.length; i++) {
+      const timer = this.stationTimers[i];
+
+      // Check if it's time to change this station's state
+      if (this.timeRemaining <= timer.nextChangeTime) {
+        const isCurrentlyActive = this.activeZones.includes(i);
+
+        if (timer.willBeActive && !isCurrentlyActive) {
+          // Reopen station
+          this.activeZones.push(i);
+          // Schedule next closure
+          timer.nextChangeTime = this.timeRemaining - this.randomBetween(STATION_OPEN_MIN_DURATION, STATION_OPEN_MAX_DURATION);
+          timer.willBeActive = false;
+        } else if (!timer.willBeActive && isCurrentlyActive) {
+          // Close station only if we maintain minimum active stations
+          if (this.activeZones.length > MIN_STATIONS_ACTIVE) {
+            this.activeZones = this.activeZones.filter(zi => zi !== i);
+            // Schedule reopening
+            timer.nextChangeTime = this.timeRemaining - this.randomBetween(STATION_FAILURE_MIN_DURATION, STATION_FAILURE_MAX_DURATION);
+            timer.willBeActive = true;
+          } else {
+            // Can't close - would violate minimum active stations rule
+            // Reschedule this station's closure attempt
+            timer.nextChangeTime = this.timeRemaining - this.randomBetween(2, 5);
+          }
+        }
+      }
+    }
   }
 
   addPlayer(socket: Socket, payload: JoinPayload): void {
@@ -72,6 +131,7 @@ export class GameRoom {
     this.timeRemaining = GAME_DURATION;
     this.restartTimer = 0;
     this.activeZones = GAS_STATIONS.map((_, i) => i);
+    this.initializeStationTimers();
   }
 
   private stopGame(): void {
@@ -125,12 +185,8 @@ export class GameRoom {
     // 2. Step physics
     this.physics.step();
 
-    // 3. Deactivate zones on schedule
-    for (const entry of ZONE_DEACTIVATION_SCHEDULE) {
-      if (this.timeRemaining <= entry.timeRemaining && this.activeZones.includes(entry.zoneIndex)) {
-        this.activeZones = this.activeZones.filter((i) => i !== entry.zoneIndex);
-      }
-    }
+    // 3. Handle random station failures
+    this.updateStationFailures();
 
     // 4. Update combos
     this.physics.updateCombos(this.activeZones);

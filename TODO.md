@@ -1,4 +1,0 @@
-- Shrinking zones — gas stations deactivate one by one as the timer progresses (e.g. at 45s, 30s, 15s), forcing players into tighter fights over fewer stations.
-- Screen-edge arrow indicators — when other players are off-screen, show arrows at the viewport edge pointing toward them with their color/emoji.
-- End-of-round stats — show "Most aggressive" (most fuel knocked), "Road warrior" (most distance driven), "Camper" (longest zone streak), etc.
-- add 2 more car types: Fičo and Bulli T1

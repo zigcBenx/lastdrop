@@ -338,18 +338,18 @@ export class Renderer {
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // Pump icon
+      // Pump icon (larger)
       ctx.fillStyle = '#888';
-      ctx.fillRect(zone.x - 8, zone.y - 20, 16, 30);
+      ctx.fillRect(zone.x - 18, zone.y - 45, 36, 65);
       ctx.fillStyle = hasOccupant ? '#2ecc71' : '#f1c40f';
       ctx.beginPath();
-      ctx.arc(zone.x, zone.y - 24, 10, 0, Math.PI * 2);
+      ctx.arc(zone.x, zone.y - 52, 22, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 14px sans-serif';
+      ctx.font = 'bold 32px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('\u26FD', zone.x, zone.y - 24);
+      ctx.fillText('\u26FD', zone.x, zone.y - 52);
 
       // City name label
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';

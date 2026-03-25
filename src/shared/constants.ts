@@ -131,13 +131,12 @@ export const GAS_STATIONS: GasStation[] = [
 export const GAME_DURATION = 60; // seconds
 export const COUNTDOWN_SECONDS = 3; // 3-2-1-GO
 
-// Zone deactivation schedule: at these times remaining, deactivate zone at that index
-// Order: Koper (3) at 45s, Celje (1) at 30s, Maribor (2) at 15s → only Ljubljana left
-export const ZONE_DEACTIVATION_SCHEDULE: { timeRemaining: number; zoneIndex: number }[] = [
-  { timeRemaining: 45, zoneIndex: 3 }, // Koper goes dark at 45s left
-  { timeRemaining: 30, zoneIndex: 1 }, // Celje goes dark at 30s left
-  { timeRemaining: 15, zoneIndex: 2 }, // Maribor goes dark at 15s left
-];
+// Random station failure settings
+export const STATION_FAILURE_MIN_DURATION = 8; // seconds - minimum time station stays closed
+export const STATION_FAILURE_MAX_DURATION = 15; // seconds - maximum time station stays closed
+export const STATION_OPEN_MIN_DURATION = 10; // seconds - minimum time station stays open
+export const STATION_OPEN_MAX_DURATION = 20; // seconds - maximum time station stays open
+export const MIN_STATIONS_ACTIVE = 2; // always keep at least this many stations open
 
 export const WALL_THICKNESS = 30;
 
