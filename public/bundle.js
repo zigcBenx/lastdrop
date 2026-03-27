@@ -3579,7 +3579,7 @@
   var CAR_ARCHETYPES = {
     zastava: {
       baseMass: 1,
-      maxForce: 4e-3,
+      maxForce: 28e-4,
       maxTorque: 0.08,
       friction: 0.3,
       frictionAir: 0.04,
@@ -3590,7 +3590,7 @@
     },
     suv: {
       baseMass: 2.5,
-      maxForce: 35e-4,
+      maxForce: 25e-4,
       maxTorque: 0.05,
       friction: 0.4,
       frictionAir: 0.05,
@@ -3601,7 +3601,7 @@
     },
     fico: {
       baseMass: 0.6,
-      maxForce: 45e-4,
+      maxForce: 32e-4,
       maxTorque: 0.1,
       friction: 0.25,
       frictionAir: 0.035,
@@ -3612,7 +3612,7 @@
     },
     bulli: {
       baseMass: 3,
-      maxForce: 3e-3,
+      maxForce: 21e-4,
       maxTorque: 0.04,
       friction: 0.45,
       frictionAir: 0.055,
