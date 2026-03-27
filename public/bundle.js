@@ -3408,7 +3408,7 @@
   });
 
   // src/shared/constants.ts
-  var TICK_RATE = 30;
+  var TICK_RATE = 20;
   var TICK_MS = 1e3 / TICK_RATE;
   var MAP_WIDTH = 3e3;
   var MAP_HEIGHT = 2e3;
@@ -3579,7 +3579,7 @@
   var CAR_ARCHETYPES = {
     zastava: {
       baseMass: 1,
-      maxForce: 28e-4,
+      maxForce: 42e-4,
       maxTorque: 0.08,
       friction: 0.3,
       frictionAir: 0.04,
@@ -3590,7 +3590,7 @@
     },
     suv: {
       baseMass: 2.5,
-      maxForce: 25e-4,
+      maxForce: 375e-5,
       maxTorque: 0.05,
       friction: 0.4,
       frictionAir: 0.05,
@@ -3601,7 +3601,7 @@
     },
     fico: {
       baseMass: 0.6,
-      maxForce: 32e-4,
+      maxForce: 48e-4,
       maxTorque: 0.1,
       friction: 0.25,
       frictionAir: 0.035,
@@ -3612,7 +3612,7 @@
     },
     bulli: {
       baseMass: 3,
-      maxForce: 21e-4,
+      maxForce: 315e-5,
       maxTorque: 0.04,
       friction: 0.45,
       frictionAir: 0.055,
@@ -3709,8 +3709,8 @@
       if (me) {
         const targetX = me.x - VIEWPORT_WIDTH / 2;
         const targetY = me.y - VIEWPORT_HEIGHT / 2;
-        this.camX += (targetX - this.camX) * 0.15;
-        this.camY += (targetY - this.camY) * 0.15;
+        this.camX += (targetX - this.camX) * 0.3;
+        this.camY += (targetY - this.camY) * 0.3;
       }
       this.camX = Math.max(0, Math.min(MAP_WIDTH - VIEWPORT_WIDTH, this.camX));
       this.camY = Math.max(0, Math.min(MAP_HEIGHT - VIEWPORT_HEIGHT, this.camY));
@@ -4350,60 +4350,43 @@
   }
   var Interpolator = class {
     constructor() {
-      this.stateBuffer = [];
-      this.renderDelay = TICK_MS * 2;
+      this.prevState = null;
+      this.currState = null;
+      this.lastUpdateTime = 0;
     }
-    // Render 2 ticks behind to allow for interpolation
     pushState(state) {
-      this.stateBuffer.push({
-        state,
-        timestamp: performance.now()
-      });
-      if (this.stateBuffer.length > 10) {
-        this.stateBuffer.shift();
-      }
+      this.prevState = this.currState;
+      this.currState = state;
+      this.lastUpdateTime = performance.now();
     }
     getInterpolatedState() {
-      if (this.stateBuffer.length === 0) return null;
-      if (this.stateBuffer.length < 3) {
-        return this.stateBuffer[this.stateBuffer.length - 1].state;
-      }
-      const now = performance.now();
-      const renderTime = now - this.renderDelay;
-      if (renderTime < this.stateBuffer[0].timestamp) {
-        return this.stateBuffer[0].state;
-      }
-      if (renderTime >= this.stateBuffer[this.stateBuffer.length - 1].timestamp) {
-        return this.stateBuffer[this.stateBuffer.length - 1].state;
-      }
-      let prevIndex = 0;
-      let nextIndex = 1;
-      for (let i = 0; i < this.stateBuffer.length - 1; i++) {
-        if (this.stateBuffer[i].timestamp <= renderTime && this.stateBuffer[i + 1].timestamp >= renderTime) {
-          prevIndex = i;
-          nextIndex = i + 1;
-          break;
+      if (!this.currState) return null;
+      if (!this.prevState) return this.currState;
+      const elapsed = performance.now() - this.lastUpdateTime;
+      const t = elapsed / TICK_MS;
+      const players = this.currState.players.map((curr) => {
+        const prev = this.prevState.players.find((p) => p.id === curr.id);
+        if (!prev) return curr;
+        if (t <= 1) {
+          return {
+            ...curr,
+            x: prev.x + (curr.x - prev.x) * t,
+            y: prev.y + (curr.y - prev.y) * t,
+            angle: lerpAngle(prev.angle, curr.angle, t)
+          };
+        } else {
+          const extraT = Math.min(t - 1, 2);
+          const dtSeconds = TICK_MS / 1e3 * extraT;
+          return {
+            ...curr,
+            x: curr.x + curr.vx * dtSeconds * 60,
+            y: curr.y + curr.vy * dtSeconds * 60,
+            angle: curr.angle + (curr.angle - prev.angle) * extraT * 0.5
+          };
         }
-      }
-      const prevState = this.stateBuffer[prevIndex].state;
-      const nextState = this.stateBuffer[nextIndex].state;
-      const prevTime = this.stateBuffer[prevIndex].timestamp;
-      const nextTime = this.stateBuffer[nextIndex].timestamp;
-      const t = Math.max(0, Math.min(1, (renderTime - prevTime) / (nextTime - prevTime)));
-      const players = nextState.players.map((next) => {
-        const prev = prevState.players.find((p) => p.id === next.id);
-        if (!prev) return next;
-        return {
-          ...next,
-          x: prev.x + (next.x - prev.x) * t,
-          y: prev.y + (next.y - prev.y) * t,
-          angle: lerpAngle(prev.angle, next.angle, t),
-          vx: prev.vx + (next.vx - prev.vx) * t,
-          vy: prev.vy + (next.vy - prev.vy) * t
-        };
       });
       return {
-        ...nextState,
+        ...this.currState,
         players
       };
     }

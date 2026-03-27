@@ -1,6 +1,6 @@
 import { CarType } from './types';
 
-export const TICK_RATE = 30;
+export const TICK_RATE = 20;
 export const TICK_MS = 1000 / TICK_RATE;
 
 export const MAP_WIDTH = 3000;
@@ -242,7 +242,7 @@ export interface CarStats {
 export const CAR_ARCHETYPES: Record<CarType, CarStats> = {
   zastava: {
     baseMass: 1,
-    maxForce: 0.0028,
+    maxForce: 0.0042,
     maxTorque: 0.08,
     friction: 0.3,
     frictionAir: 0.04,
@@ -253,7 +253,7 @@ export const CAR_ARCHETYPES: Record<CarType, CarStats> = {
   },
   suv: {
     baseMass: 2.5,
-    maxForce: 0.0025,
+    maxForce: 0.00375,
     maxTorque: 0.05,
     friction: 0.4,
     frictionAir: 0.05,
@@ -264,7 +264,7 @@ export const CAR_ARCHETYPES: Record<CarType, CarStats> = {
   },
   fico: {
     baseMass: 0.6,
-    maxForce: 0.0032,
+    maxForce: 0.0048,
     maxTorque: 0.10,
     friction: 0.25,
     frictionAir: 0.035,
@@ -275,7 +275,7 @@ export const CAR_ARCHETYPES: Record<CarType, CarStats> = {
   },
   bulli: {
     baseMass: 3.0,
-    maxForce: 0.0021,
+    maxForce: 0.00315,
     maxTorque: 0.04,
     friction: 0.45,
     frictionAir: 0.055,

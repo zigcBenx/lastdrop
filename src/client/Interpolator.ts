@@ -14,77 +14,52 @@ interface TimestampedState {
 }
 
 export class Interpolator {
-  private stateBuffer: TimestampedState[] = [];
-  private renderDelay = TICK_MS * 2; // Render 2 ticks behind to allow for interpolation
+  private prevState: GameState | null = null;
+  private currState: GameState | null = null;
+  private lastUpdateTime: number = 0;
 
   pushState(state: GameState): void {
-    this.stateBuffer.push({
-      state,
-      timestamp: performance.now(),
-    });
-
-    // Keep buffer size reasonable (max 10 states)
-    if (this.stateBuffer.length > 10) {
-      this.stateBuffer.shift();
-    }
+    this.prevState = this.currState;
+    this.currState = state;
+    this.lastUpdateTime = performance.now();
   }
 
   getInterpolatedState(): GameState | null {
-    if (this.stateBuffer.length === 0) return null;
+    if (!this.currState) return null;
+    if (!this.prevState) return this.currState;
 
-    // At startup, just use the latest state until we have enough buffer
-    if (this.stateBuffer.length < 3) {
-      return this.stateBuffer[this.stateBuffer.length - 1].state;
-    }
+    const elapsed = performance.now() - this.lastUpdateTime;
+    const t = elapsed / TICK_MS;
 
-    const now = performance.now();
-    const renderTime = now - this.renderDelay;
+    // When t <= 1: interpolate between prev and curr (normal)
+    // When t > 1: extrapolate beyond curr using velocity (covers network gaps)
+    const players: PlayerState[] = this.currState.players.map((curr) => {
+      const prev = this.prevState!.players.find((p) => p.id === curr.id);
+      if (!prev) return curr;
 
-    // If render time is behind the first state, use the first state
-    if (renderTime < this.stateBuffer[0].timestamp) {
-      return this.stateBuffer[0].state;
-    }
-
-    // If render time is ahead of all states, use the latest
-    if (renderTime >= this.stateBuffer[this.stateBuffer.length - 1].timestamp) {
-      return this.stateBuffer[this.stateBuffer.length - 1].state;
-    }
-
-    // Find the two states to interpolate between
-    let prevIndex = 0;
-    let nextIndex = 1;
-
-    for (let i = 0; i < this.stateBuffer.length - 1; i++) {
-      if (this.stateBuffer[i].timestamp <= renderTime && this.stateBuffer[i + 1].timestamp >= renderTime) {
-        prevIndex = i;
-        nextIndex = i + 1;
-        break;
+      if (t <= 1) {
+        // Standard interpolation
+        return {
+          ...curr,
+          x: prev.x + (curr.x - prev.x) * t,
+          y: prev.y + (curr.y - prev.y) * t,
+          angle: lerpAngle(prev.angle, curr.angle, t),
+        };
+      } else {
+        // Extrapolate using velocity (capped at 2 ticks ahead to prevent overshoot)
+        const extraT = Math.min(t - 1, 2);
+        const dtSeconds = (TICK_MS / 1000) * extraT;
+        return {
+          ...curr,
+          x: curr.x + curr.vx * dtSeconds * 60,
+          y: curr.y + curr.vy * dtSeconds * 60,
+          angle: curr.angle + (curr.angle - prev.angle) * extraT * 0.5,
+        };
       }
-    }
-
-    const prevState = this.stateBuffer[prevIndex].state;
-    const nextState = this.stateBuffer[nextIndex].state;
-    const prevTime = this.stateBuffer[prevIndex].timestamp;
-    const nextTime = this.stateBuffer[nextIndex].timestamp;
-
-    const t = Math.max(0, Math.min(1, (renderTime - prevTime) / (nextTime - prevTime)));
-
-    const players: PlayerState[] = nextState.players.map((next) => {
-      const prev = prevState.players.find((p) => p.id === next.id);
-      if (!prev) return next;
-
-      return {
-        ...next,
-        x: prev.x + (next.x - prev.x) * t,
-        y: prev.y + (next.y - prev.y) * t,
-        angle: lerpAngle(prev.angle, next.angle, t),
-        vx: prev.vx + (next.vx - prev.vx) * t,
-        vy: prev.vy + (next.vy - prev.vy) * t,
-      };
     });
 
     return {
-      ...nextState,
+      ...this.currState,
       players,
     };
   }

@@ -136,9 +136,9 @@ export class Renderer {
       // Center camera on local player
       const targetX = me.x - VIEWPORT_WIDTH / 2;
       const targetY = me.y - VIEWPORT_HEIGHT / 2;
-      // Smooth camera follow
-      this.camX += (targetX - this.camX) * 0.15;
-      this.camY += (targetY - this.camY) * 0.15;
+      // Smooth camera follow (snappy to reduce perceived lag)
+      this.camX += (targetX - this.camX) * 0.3;
+      this.camY += (targetY - this.camY) * 0.3;
     }
     // Clamp camera to map bounds
     this.camX = Math.max(0, Math.min(MAP_WIDTH - VIEWPORT_WIDTH, this.camX));
